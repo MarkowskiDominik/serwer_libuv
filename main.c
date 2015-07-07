@@ -31,7 +31,6 @@ int main(int argc, char * argv[]) {
     address = argv[1];
     port = atoi(argv[2]);
     backlog = atoi(argv[3]);
-    
     fprintf(stderr, "settings serwer: %s %d %d\n", address, port, backlog);
     
     loop = uv_default_loop();
@@ -78,7 +77,9 @@ void read_cb(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf) {
     if (nread == UV_EOF) {
         uv_close((uv_handle_t*) client, NULL);
     } else if (nread > 0) {
-        fprintf(stderr, "read %ld bytes: %s\n", nread, *buf);
+        fprintf(stderr, "read %ld bytes: %s\n", nread, buf->base);
+        
+        if(!strcmp(buf->base,"QUIT")) uv_stop(loop);
         
         write_req_t *wr = (write_req_t*) malloc(sizeof(write_req_t));
         wr->buf =  uv_buf_init(buf->base, nread);
