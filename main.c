@@ -7,10 +7,10 @@
 #define DEFAULT_PORT 1500
 #define DEFAULT_BACKLOG 10
 
-#define ERROR(msg, code) do {                                                         \
+#define ERROR(msg, code)  {                                                         \
   fprintf(stderr, "%s: [%s: %s]\n", msg, uv_err_name((code)), uv_strerror((code)));   \
   assert(0);                                                                          \
-} while(0);
+}
 
 typedef struct {
   uv_write_t req;
@@ -23,22 +23,32 @@ void read_cb(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf);
 void write_cb(uv_write_t *req, int status);
 
 uv_loop_t *loop;
+char *address;
+int port;
+int backlog;
 
-int main() {
+int main(int argc, char * argv[]) {
+    address = argv[1];
+    port = atoi(argv[2]);
+    backlog = atoi(argv[3]);
+    
+    fprintf(stderr, "settings serwer: %s %d %d\n", address, port, backlog);
+    
     loop = uv_default_loop();
 
     uv_tcp_t server;
     uv_tcp_init(loop, &server);
 
     struct sockaddr_in addr;
-    uv_ip4_addr(DEFAULT_ADDRESS, DEFAULT_PORT, &addr);
+    uv_ip4_addr(address, port, &addr);
 
     uv_tcp_bind(&server, (const struct sockaddr*)&addr, 0);
-    int r = uv_listen((uv_stream_t*) &server, DEFAULT_BACKLOG, connection);
+    int r = uv_listen((uv_stream_t*) &server, backlog, connection);
     if (r) {
         fprintf(stderr, "Listen error %s\n", uv_strerror(r));
         return 1;
     }
+    
     return uv_run(loop, UV_RUN_DEFAULT);
 }
 
@@ -68,7 +78,7 @@ void read_cb(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf) {
     if (nread == UV_EOF) {
         uv_close((uv_handle_t*) client, NULL);
     } else if (nread > 0) {
-        fprintf(stderr, "%ld bytes read\n", nread);
+        fprintf(stderr, "read %ld bytes: %s\n", nread, *buf);
         
         write_req_t *wr = (write_req_t*) malloc(sizeof(write_req_t));
         wr->buf =  uv_buf_init(buf->base, nread);
@@ -83,7 +93,7 @@ void write_cb(uv_write_t *req, int status) {
     int written = wr->buf.len;
     if (status) ERROR("async write", status);
     assert(wr->req.type == UV_WRITE);
-    fprintf(stderr, "%d bytes written\n", written);
+    fprintf(stderr, "file send\n");
     
     free(wr->buf.base);
     free(wr);
