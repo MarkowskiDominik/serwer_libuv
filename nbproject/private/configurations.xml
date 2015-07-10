@@ -24,9 +24,20 @@
       </nativedebugger>
       <runprofile version="9">
         <runcommandpicklist>
+          <runcommandpicklistitem>"${OUTPUT_PATH}"
+"127.0.0.1"
+"1500"
+"10"</runcommandpicklistitem>
+          <runcommandpicklistitem>"${OUTPUT_PATH} 127.0.0.1"
+"1500"
+"10"</runcommandpicklistitem>
           <runcommandpicklistitem>"${OUTPUT_PATH}"</runcommandpicklistitem>
+          <runcommandpicklistitem>"0" "1500" "10"</runcommandpicklistitem>
+          <runcommandpicklistitem>"0.0.0.0" "1500" "10"</runcommandpicklistitem>
+          <runcommandpicklistitem>"${OUTPUT_PATH}" "127.0.0.1" "1500" "10"</runcommandpicklistitem>
+          <runcommandpicklistitem>"${OUTPUT_PATH}" "0" "1500" "10"</runcommandpicklistitem>
         </runcommandpicklist>
-        <runcommand>"${OUTPUT_PATH}"</runcommand>
+        <runcommand>"${OUTPUT_PATH}" "0" "1500" "10"</runcommand>
         <rundir></rundir>
         <buildfirst>true</buildfirst>
         <terminal-type>0</terminal-type>

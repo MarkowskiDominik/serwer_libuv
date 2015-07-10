@@ -12,7 +12,7 @@
     <logicalFolder name="SourceFiles"
                    displayName="Source Files"
                    projectFiles="true">
-      <itemPath>main.c</itemPath>
+      <itemPath>main_ser.c</itemPath>
     </logicalFolder>
     <logicalFolder name="TestFiles"
                    displayName="Test Files"
@@ -25,6 +25,8 @@
                    kind="IMPORTANT_FILES_FOLDER">
       <itemPath>Makefile</itemPath>
     </logicalFolder>
+    <itemPath>file1</itemPath>
+    <itemPath>file2</itemPath>
   </logicalFolder>
   <projectmakefile>Makefile</projectmakefile>
   <confs>
@@ -41,7 +43,11 @@
           </linkerLibItems>
         </linkerTool>
       </compileType>
-      <item path="main.c" ex="false" tool="0" flavor2="0">
+      <item path="file1" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="file2" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="main_ser.c" ex="false" tool="0" flavor2="0">
       </item>
     </conf>
     <conf name="Release" type="1">
@@ -64,7 +70,11 @@
           <developmentMode>5</developmentMode>
         </asmTool>
       </compileType>
-      <item path="main.c" ex="false" tool="0" flavor2="0">
+      <item path="file1" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="file2" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="main_ser.c" ex="false" tool="0" flavor2="0">
       </item>
     </conf>
   </confs>
