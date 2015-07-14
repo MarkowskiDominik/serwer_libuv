@@ -15,6 +15,7 @@
 #define DEFAULT_PORT 1500
 #define DEFAULT_BACKLOG 10
 #define NOIPC 0
+#define SIZE 43776
 
 #define CHECK(r, msg) if (r) {                                                          \
     fprintf(stderr, "%s: [%s(%d): %s]\n", msg, uv_err_name((r)), r, uv_strerror((r)));  \
@@ -98,14 +99,14 @@ void read_file_name(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) {
     if (nread == UV_EOF) {
         uv_close((uv_handle_t*)client, NULL);
     } else if (nread > 0) {
-        fprintf(stdout, "###\tread %ld bytes: %s\n", nread, buf->base);
+        fprintf(stdout, "### read name: %s\n", buf->base);
 
         if (!strcmp(buf->base, "KILL")) uv_stop(client->loop);
 
         uv_fs_t* open_req = malloc(sizeof(uv_fs_t));
         context_t* context = malloc(sizeof(context_t));
         context->tcp = client;
-        context->open_req  = open_req;
+        context->open_req = open_req;
         open_req->data = context;
         
         uv_fs_t* access_req = malloc(sizeof(uv_fs_t));
@@ -130,27 +131,43 @@ void open_file(uv_fs_t* open_req) {
     r = uv_fs_stat(open_req->loop, stat_req, open_req->path, NULL);
     CHECK(r, "uv_fs_stat");
     
-    uv_buf_t* buf = malloc(sizeof(uv_buf_t));
-    *buf = uv_buf_init((char*)malloc(stat_req->statbuf.st_size), stat_req->statbuf.st_size);
+    fprintf(stdout, "### file size: %ld\n", stat_req->statbuf.st_size);
+    
+    int nbufs = stat_req->statbuf.st_size / SIZE + 1;
+    fprintf(stdout, "### nbuf: %d\n", nbufs);
+    
+    uv_buf_t* bufs = malloc(sizeof(uv_buf_t)*nbufs);
+    int i;
+    for(i = 0; i< nbufs-1; i++)
+        bufs[i] = uv_buf_init((char*)malloc(stat_req->statbuf.st_size), SIZE);
+    bufs[i] = uv_buf_init((char*)malloc(stat_req->statbuf.st_size), stat_req->statbuf.st_size - (nbufs-1)*SIZE);
+    for(i = 0; i< nbufs; i++)
+        fprintf(stdout, "    buf[%d]: %ld\n", i, bufs[i].len);
     
     uv_fs_t *read_req = malloc(sizeof(uv_fs_t));
     context_t* context = open_req->data;
     context->read_req = read_req;
     read_req->data = context;
-    
-    r = uv_fs_read(open_req->loop, read_req, open_req->result, buf, 1, 0, read_file);
+
+    r = uv_fs_read(open_req->loop, read_req, open_req->result, bufs, nbufs, 0, read_file);
     CHECK(r, "uv_fs_read");
 }
 
 void read_file(uv_fs_t* read_req) {
     if (read_req->result < 0) CHECK((int)read_req->result, "uv_fs_read callback");
     
-    fprintf(stdout, "\tbufs->base:\n%s\n\tbufs->len: %ld\n", read_req->bufs->base, read_req->bufs->len);
+    //fprintf(stdout, "bufs->len: %ld\n", read_req->bufs[1].len);
+    fprintf(stdout, "### bufs->base:\n%s\n### bufs->len: %ld\n", read_req->bufs[11].base, read_req->bufs[11].len);
     
     context_t* context = read_req->data;
     uv_write_t* sendfile_req = malloc(sizeof(uv_write_t));
-    r = uv_write(sendfile_req, context->tcp, read_req->bufs, 1, NULL);
-    CHECK(r, "uv_fs_write");
+    
+    int i;
+    for(i = 0; i< read_req->nbufs-1; i++) {
+        r = uv_write(sendfile_req, context->tcp, read_req->bufs, i, NULL);
+        CHECK(r, "uv_fs_write");
+        i++;
+    }
     
     free(read_req->bufs->base);
     
