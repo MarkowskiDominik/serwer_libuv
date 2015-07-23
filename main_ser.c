@@ -15,7 +15,6 @@
 #define DEFAULT_PORT 1500
 #define DEFAULT_BACKLOG 10
 #define NOIPC 0
-#define SIZE1 10000
 #define SIZE 43776
 
 #define CHECK(r, msg) if (r) {                                                          \
@@ -34,7 +33,6 @@ void connection(uv_stream_t* server, int status);
 void read_file_name(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf);
 void open_file(uv_fs_t*);
 void read_file(uv_fs_t*);
-void close_file(uv_fs_t*);
 
 char* address;
 int port;
@@ -117,9 +115,10 @@ void read_file_name(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) {
             CHECK(r, "uv_fs_open");
         } else {
             uv_write_t write_req;
-            uv_buf_t buf = uv_buf_init((char*) malloc(0), 1);
+            uv_buf_t buf = uv_buf_init((char*) malloc(1), 0);
             r = uv_write(&write_req, client, &buf, 1, NULL);
-            CHECK(r, "uv_fs_write");
+            CHECK(r, "uv_write empty");
+            uv_close((uv_handle_t*)client, NULL);
         }
     }
     if (nread == 0) free(buf->base);
@@ -162,38 +161,20 @@ void open_file(uv_fs_t* open_req) {
 }
 
 void read_file(uv_fs_t* read_req) {
-    if (read_req->result < 0) CHECK((int) read_req->result, "uv_fs_read callback");
+    //if (read_req->result < 0) CHECK((int) read_req->result, "uv_fs_read callback");
 
     context_t* context = read_req->data;
-    uv_write_t* write_req = malloc(sizeof (uv_write_t));
-
-    r = uv_write(write_req, context->tcp, read_req->bufs, read_req->nbufs, NULL);
-    CHECK(r, "uv_fs_write");
+    //uv_write_t* write_req = malloc(sizeof (uv_write_t));
+    uv_write_t write_req;
     
-    /*
-    uv_buf_t end_stream = uv_buf_init((char*)malloc(sizeof(char)), 0);
-    fprintf(stdout, "   buf[%d]: %ld %s\n", read_req->nbufs, end_stream.len, end_stream.base);
-    r = uv_write(write_req, context->tcp, &end_stream, 1, NULL);
-    CHECK(r, "uv_fs_write");
-    */
+    r = uv_write(&write_req, context->tcp, read_req->bufs, read_req->nbufs, NULL);
+    CHECK(r, "uv_write");
     
     uv_fs_t close_req;
     close_req.data = context;
 
     r = uv_fs_close(read_req->loop, &close_req, context->open_req->result, NULL);
     CHECK(r, "uv_fs_close");
-}
-
-void close_file(uv_fs_t* close_req) {
-    fprintf(stdout, " close file\n");
-    if (close_req->result < 0) CHECK((int) close_req->result, "uv_fs_close callback");
-
-    context_t* context = close_req->data;
-
-    uv_fs_req_cleanup(context->open_req);
-    uv_fs_req_cleanup(context->read_req);
-    uv_fs_req_cleanup(close_req);
-    free(context);
-
-    uv_close((uv_handle_t*) context->tcp, NULL);
+    
+    uv_close((uv_handle_t*)context->tcp, NULL);
 }
