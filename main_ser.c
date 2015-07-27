@@ -8,18 +8,36 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <uv.h>
-#include <assert.h>
+#include <time.h>
 #include <string.h>
 
 #define DEFAULT_ADDRESS INADDR_ANY
 #define DEFAULT_PORT 1500
 #define DEFAULT_BACKLOG 10
-#define NOIPC 0
 #define SIZE 43776
+#define LOG_ERROR_FILE "catchup_error.log"
+#define LOG_INFO_FILE "catchup_info.log"
 
 #define CHECK(r, msg) if (r) {                                                          \
+    FILE *fd;                                                                           \
+    fd = fopen(LOG_ERROR_FILE, "a");                                                    \
+    if (fd)                                                                             \
+        fprintf(fd, "%s: [%s(%d): %s]\n", msg, uv_err_name((r)), r, uv_strerror((r)));  \
+    fclose(fd);                                                                         \
     fprintf(stderr, "%s: [%s(%d): %s]\n", msg, uv_err_name((r)), r, uv_strerror((r)));  \
     exit(EXIT_FAILURE);                                                                 \
+}
+
+#define LOG_INFO(msg) {                                                                 \
+    time_t rawtime;                                                                     \
+    time (&rawtime);                                                                    \
+    char buffer[20];                                                                    \
+    strftime(buffer,20,"%F %T",localtime(&rawtime));                                    \
+    FILE *fd;                                                                           \
+    fd = fopen(LOG_INFO_FILE, "a");                                                     \
+    if (fd)                                                                             \
+        fprintf(fd, "%s : %s\n", buffer, msg);                                          \
+    fclose(fd);                                                                         \
 }
 
 typedef struct context_struct {
@@ -30,6 +48,7 @@ typedef struct context_struct {
 
 void alloc_buffer(uv_handle_t* handle, size_t size, uv_buf_t* buf);
 void connection(uv_stream_t* server, int status);
+void new_thread(void *arg);
 void read_file_name(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf);
 void open_file(uv_fs_t*);
 void read_file(uv_fs_t*);
@@ -87,20 +106,32 @@ void connection(uv_stream_t* server, int status) {
     uv_tcp_init(server->loop, client);
 
     if (uv_accept(server, (uv_stream_t*) client) == 0) {
-        uv_read_start((uv_stream_t*) client, alloc_buffer, read_file_name);
+        uv_thread_t tid;
+        r = uv_thread_create(&tid, new_thread, client);
+        CHECK(r, "uv_thread_create\n");
+        uv_thread_join(&tid);
     } else {
         uv_close((uv_handle_t*) client, NULL);
     }
 }
 
+void new_thread(void* arg) {
+    uv_tcp_t* client = (uv_tcp_t*) arg;
+    r = uv_read_start((uv_stream_t*) client, alloc_buffer, read_file_name);
+    CHECK(r, "uv_read_start\n");
+}
+
 void read_file_name(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) {
-    printf("########\n");
+    /*
+    char* info = inet_ntoa(client_sock.sin_addr)  (int)client_sock.sin_port)  buf->base;
+    struct sockaddr_in* addr = (struct sockaddr_in*)&client;
+    fprintf(stdout, "#### %s %d", inet_ntoa(addr->sin_addr), (int)addr->sin_port);
+     */
+    LOG_INFO(buf->base);
 
     if (nread == UV_EOF) {
         uv_close((uv_handle_t*) client, NULL);
     } else if (nread > 0) {
-        fprintf(stdout, " read name: %s\n", buf->base);
-
         if (!strcmp(buf->base, "KILL")) uv_stop(client->loop);
 
         uv_fs_t* open_req = malloc(sizeof (uv_fs_t));
@@ -115,10 +146,10 @@ void read_file_name(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) {
             CHECK(r, "uv_fs_open");
         } else {
             uv_write_t write_req;
-            uv_buf_t buf = uv_buf_init((char*) malloc(1), 0);
+            uv_buf_t buf = uv_buf_init((char*) malloc(0), 0);
             r = uv_write(&write_req, client, &buf, 1, NULL);
             CHECK(r, "uv_write empty");
-            uv_close((uv_handle_t*)client, NULL);
+            uv_close((uv_handle_t*) client, NULL);
         }
     }
     if (nread == 0) free(buf->base);
@@ -131,22 +162,17 @@ void open_file(uv_fs_t* open_req) {
     r = uv_fs_stat(open_req->loop, stat_req, open_req->path, NULL);
     CHECK(r, "uv_fs_stat");
 
-    fprintf(stdout, " file size: %ld\n", stat_req->statbuf.st_size);
-
     int nbufs;
     if (stat_req->statbuf.st_size % SIZE == 0)
         nbufs = stat_req->statbuf.st_size / SIZE;
     else
         nbufs = stat_req->statbuf.st_size / SIZE + 1;
-    fprintf(stdout, " nbuf: %d\n", nbufs);
 
     uv_buf_t* bufs = malloc(sizeof (uv_buf_t) * nbufs);
     int i;
     for (i = 0; i < nbufs - 1; i++)
         bufs[i] = uv_buf_init((char*) malloc(stat_req->statbuf.st_size), SIZE);
     bufs[i] = uv_buf_init((char*) malloc(stat_req->statbuf.st_size), stat_req->statbuf.st_size % SIZE);
-    for (i = 0; i < nbufs; i++)
-        fprintf(stdout, "   buf[%d]: %ld %s\n", i, bufs[i].len, bufs[i].base);
 
     uv_fs_t *read_req = malloc(sizeof (uv_fs_t));
     context_t* context = open_req->data;
@@ -161,20 +187,19 @@ void open_file(uv_fs_t* open_req) {
 }
 
 void read_file(uv_fs_t* read_req) {
-    //if (read_req->result < 0) CHECK((int) read_req->result, "uv_fs_read callback");
+    if (read_req->result < 0) CHECK((int) read_req->result, "uv_fs_read callback");
 
     context_t* context = read_req->data;
-    //uv_write_t* write_req = malloc(sizeof (uv_write_t));
     uv_write_t write_req;
-    
+
     r = uv_write(&write_req, context->tcp, read_req->bufs, read_req->nbufs, NULL);
     CHECK(r, "uv_write");
-    
+
     uv_fs_t close_req;
     close_req.data = context;
 
     r = uv_fs_close(read_req->loop, &close_req, context->open_req->result, NULL);
     CHECK(r, "uv_fs_close");
-    
-    uv_close((uv_handle_t*)context->tcp, NULL);
+
+    uv_close((uv_handle_t*) context->tcp, NULL);
 }

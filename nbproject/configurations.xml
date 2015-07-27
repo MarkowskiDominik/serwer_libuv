@@ -25,8 +25,13 @@
                    kind="IMPORTANT_FILES_FOLDER">
       <itemPath>Makefile</itemPath>
     </logicalFolder>
+    <itemPath>abc.sh</itemPath>
+    <itemPath>catchup_error.log</itemPath>
+    <itemPath>catchup_info.log</itemPath>
     <itemPath>file1</itemPath>
     <itemPath>file2</itemPath>
+    <itemPath>file3</itemPath>
+    <itemPath>qwertyuiop.zxcvbnm</itemPath>
   </logicalFolder>
   <projectmakefile>Makefile</projectmakefile>
   <confs>
@@ -43,11 +48,21 @@
           </linkerLibItems>
         </linkerTool>
       </compileType>
+      <item path="abc.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="catchup_error.log" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="catchup_info.log" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="file1" ex="false" tool="3" flavor2="0">
       </item>
       <item path="file2" ex="false" tool="3" flavor2="0">
       </item>
+      <item path="file3" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="main_ser.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="qwertyuiop.zxcvbnm" ex="false" tool="3" flavor2="0">
       </item>
     </conf>
     <conf name="Release" type="1">
@@ -70,11 +85,21 @@
           <developmentMode>5</developmentMode>
         </asmTool>
       </compileType>
+      <item path="abc.sh" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="catchup_error.log" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="catchup_info.log" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="file1" ex="false" tool="3" flavor2="0">
       </item>
       <item path="file2" ex="false" tool="3" flavor2="0">
       </item>
+      <item path="file3" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="main_ser.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="qwertyuiop.zxcvbnm" ex="false" tool="3" flavor2="0">
       </item>
     </conf>
   </confs>
